@@ -21,27 +21,27 @@ export const HealthCheckResponse = zod.object({
  * @summary Get a privacy-conscious dashboard summary
  */
 export const GetDashboardResponse = zod.object({
-  "activePatients": zod.number().int(),
-  "sessionsThisMonth": zod.number().int(),
-  "appointmentsToday": zod.number().int(),
+  "activePatients": zod.int(),
+  "sessionsThisMonth": zod.int(),
+  "appointmentsToday": zod.int(),
   "todayAppointments": zod.array(zod.object({
-  "id": zod.string().uuid(),
-  "patientId": zod.string().uuid(),
+  "id": zod.uuid(),
+  "patientId": zod.uuid(),
   "patientName": zod.string(),
   "scheduledAt": zod.coerce.date(),
   "appointmentType": zod.string(),
   "status": zod.string()
 })),
   "upcomingAppointments": zod.array(zod.object({
-  "id": zod.string().uuid(),
-  "patientId": zod.string().uuid(),
+  "id": zod.uuid(),
+  "patientId": zod.uuid(),
   "patientName": zod.string(),
   "scheduledAt": zod.coerce.date(),
   "appointmentType": zod.string(),
   "status": zod.string()
 })),
   "recentActivity": zod.array(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "label": zod.string(),
   "occurredAt": zod.coerce.date(),
   "category": zod.string()
@@ -61,9 +61,9 @@ export const ListPatientsQueryParams = zod.object({
 })
 
 export const ListPatientsResponseItem = zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "fullName": zod.string(),
-  "email": zod.string().email().nullable(),
+  "email": zod.email().nullable(),
   "phone": zod.string().nullable(),
   "birthDate": zod.coerce.date().nullable(),
   "status": zod.enum(['in_follow_up', 'initial_evaluation', 'paused', 'discharged']),
@@ -86,7 +86,7 @@ export const createPatientBodyPhoneMax = 40;
 
 export const CreatePatientBody = zod.object({
   "fullName": zod.string().min(createPatientBodyFullNameMin).max(createPatientBodyFullNameMax),
-  "email": zod.string().email().nullish(),
+  "email": zod.email().nullish(),
   "phone": zod.string().max(createPatientBodyPhoneMax).nullish(),
   "birthDate": zod.coerce.date().nullish(),
   "status": zod.enum(['in_follow_up', 'initial_evaluation', 'paused', 'discharged']),
@@ -94,9 +94,9 @@ export const CreatePatientBody = zod.object({
 })
 
 export const CreatePatientResponse = zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "fullName": zod.string(),
-  "email": zod.string().email().nullable(),
+  "email": zod.email().nullable(),
   "phone": zod.string().nullable(),
   "birthDate": zod.coerce.date().nullable(),
   "status": zod.enum(['in_follow_up', 'initial_evaluation', 'paused', 'discharged']),
@@ -110,13 +110,13 @@ export const CreatePatientResponse = zod.object({
  * @summary Get one patient
  */
 export const GetPatientParams = zod.object({
-  "patientId": zod.coerce.string().uuid()
+  "patientId": zod.uuid()
 })
 
 export const GetPatientResponse = zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "fullName": zod.string(),
-  "email": zod.string().email().nullable(),
+  "email": zod.email().nullable(),
   "phone": zod.string().nullable(),
   "birthDate": zod.coerce.date().nullable(),
   "status": zod.enum(['in_follow_up', 'initial_evaluation', 'paused', 'discharged']),
@@ -130,7 +130,7 @@ export const GetPatientResponse = zod.object({
  * @summary Update administrative patient details
  */
 export const UpdatePatientParams = zod.object({
-  "patientId": zod.coerce.string().uuid()
+  "patientId": zod.uuid()
 })
 
 export const updatePatientBodyFullNameMin = 2;
@@ -142,7 +142,7 @@ export const updatePatientBodyPhoneMax = 40;
 
 export const UpdatePatientBody = zod.object({
   "fullName": zod.string().min(updatePatientBodyFullNameMin).max(updatePatientBodyFullNameMax).optional(),
-  "email": zod.string().email().nullish(),
+  "email": zod.email().nullish(),
   "phone": zod.string().max(updatePatientBodyPhoneMax).nullish(),
   "birthDate": zod.coerce.date().nullish(),
   "status": zod.enum(['in_follow_up', 'initial_evaluation', 'paused', 'discharged']).optional(),
@@ -150,9 +150,9 @@ export const UpdatePatientBody = zod.object({
 })
 
 export const UpdatePatientResponse = zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "fullName": zod.string(),
-  "email": zod.string().email().nullable(),
+  "email": zod.email().nullable(),
   "phone": zod.string().nullable(),
   "birthDate": zod.coerce.date().nullable(),
   "status": zod.enum(['in_follow_up', 'initial_evaluation', 'paused', 'discharged']),
@@ -166,13 +166,13 @@ export const UpdatePatientResponse = zod.object({
  * @summary Archive a patient without deleting their records
  */
 export const ArchivePatientParams = zod.object({
-  "patientId": zod.coerce.string().uuid()
+  "patientId": zod.uuid()
 })
 
 export const ArchivePatientResponse = zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "fullName": zod.string(),
-  "email": zod.string().email().nullable(),
+  "email": zod.email().nullable(),
   "phone": zod.string().nullable(),
   "birthDate": zod.coerce.date().nullable(),
   "status": zod.enum(['in_follow_up', 'initial_evaluation', 'paused', 'discharged']),
@@ -186,16 +186,16 @@ export const ArchivePatientResponse = zod.object({
  * @summary List a patient's chronological clinical record
  */
 export const ListPatientRecordsParams = zod.object({
-  "patientId": zod.coerce.string().uuid()
+  "patientId": zod.uuid()
 })
 
 
 
 
 export const ListPatientRecordsResponseItem = zod.object({
-  "id": zod.string().uuid(),
-  "patientId": zod.string().uuid(),
-  "appointmentId": zod.string().uuid().nullable(),
+  "id": zod.uuid(),
+  "patientId": zod.uuid(),
+  "appointmentId": zod.uuid().nullable(),
   "occurredAt": zod.coerce.date(),
   "recordKind": zod.enum(['psychological_record', 'restricted_document']),
   "sessionType": zod.string(),
@@ -204,8 +204,8 @@ export const ListPatientRecordsResponseItem = zod.object({
   "professionalNotes": zod.string().nullable(),
   "interventions": zod.string().nullable(),
   "status": zod.enum(['draft', 'finalized']),
-  "version": zod.number().int().min(1),
-  "previousVersionId": zod.string().uuid().nullable(),
+  "version": zod.int().min(1),
+  "previousVersionId": zod.uuid().nullable(),
   "amendmentReason": zod.string().nullable(),
   "professionalId": zod.string(),
   "createdAt": zod.coerce.date(),
@@ -219,7 +219,7 @@ export const ListPatientRecordsResponse = zod.array(ListPatientRecordsResponseIt
  * @summary Create a draft clinical record entry
  */
 export const CreateRecordParams = zod.object({
-  "patientId": zod.coerce.string().uuid()
+  "patientId": zod.uuid()
 })
 
 export const createRecordBodySessionTypeMin = 2;
@@ -236,7 +236,7 @@ export const createRecordBodyInterventionsMax = 10000;
 
 
 export const CreateRecordBody = zod.object({
-  "appointmentId": zod.string().uuid().nullish(),
+  "appointmentId": zod.uuid().nullish(),
   "occurredAt": zod.coerce.date(),
   "recordKind": zod.enum(['psychological_record', 'restricted_document']),
   "sessionType": zod.string().min(createRecordBodySessionTypeMin).max(createRecordBodySessionTypeMax),
@@ -250,9 +250,9 @@ export const CreateRecordBody = zod.object({
 
 
 export const CreateRecordResponse = zod.object({
-  "id": zod.string().uuid(),
-  "patientId": zod.string().uuid(),
-  "appointmentId": zod.string().uuid().nullable(),
+  "id": zod.uuid(),
+  "patientId": zod.uuid(),
+  "appointmentId": zod.uuid().nullable(),
   "occurredAt": zod.coerce.date(),
   "recordKind": zod.enum(['psychological_record', 'restricted_document']),
   "sessionType": zod.string(),
@@ -261,8 +261,8 @@ export const CreateRecordResponse = zod.object({
   "professionalNotes": zod.string().nullable(),
   "interventions": zod.string().nullable(),
   "status": zod.enum(['draft', 'finalized']),
-  "version": zod.number().int().min(1),
-  "previousVersionId": zod.string().uuid().nullable(),
+  "version": zod.int().min(1),
+  "previousVersionId": zod.uuid().nullable(),
   "amendmentReason": zod.string().nullable(),
   "professionalId": zod.string(),
   "createdAt": zod.coerce.date(),
@@ -275,7 +275,7 @@ export const CreateRecordResponse = zod.object({
  * @summary Update an unfinalized record draft
  */
 export const UpdateRecordParams = zod.object({
-  "recordId": zod.coerce.string().uuid()
+  "recordId": zod.uuid()
 })
 
 export const updateRecordBodySessionTypeMin = 2;
@@ -305,9 +305,9 @@ export const UpdateRecordBody = zod.object({
 
 
 export const UpdateRecordResponse = zod.object({
-  "id": zod.string().uuid(),
-  "patientId": zod.string().uuid(),
-  "appointmentId": zod.string().uuid().nullable(),
+  "id": zod.uuid(),
+  "patientId": zod.uuid(),
+  "appointmentId": zod.uuid().nullable(),
   "occurredAt": zod.coerce.date(),
   "recordKind": zod.enum(['psychological_record', 'restricted_document']),
   "sessionType": zod.string(),
@@ -316,8 +316,8 @@ export const UpdateRecordResponse = zod.object({
   "professionalNotes": zod.string().nullable(),
   "interventions": zod.string().nullable(),
   "status": zod.enum(['draft', 'finalized']),
-  "version": zod.number().int().min(1),
-  "previousVersionId": zod.string().uuid().nullable(),
+  "version": zod.int().min(1),
+  "previousVersionId": zod.uuid().nullable(),
   "amendmentReason": zod.string().nullable(),
   "professionalId": zod.string(),
   "createdAt": zod.coerce.date(),
@@ -330,16 +330,16 @@ export const UpdateRecordResponse = zod.object({
  * @summary Finalize a draft and make it immutable
  */
 export const FinalizeRecordParams = zod.object({
-  "recordId": zod.coerce.string().uuid()
+  "recordId": zod.uuid()
 })
 
 
 
 
 export const FinalizeRecordResponse = zod.object({
-  "id": zod.string().uuid(),
-  "patientId": zod.string().uuid(),
-  "appointmentId": zod.string().uuid().nullable(),
+  "id": zod.uuid(),
+  "patientId": zod.uuid(),
+  "appointmentId": zod.uuid().nullable(),
   "occurredAt": zod.coerce.date(),
   "recordKind": zod.enum(['psychological_record', 'restricted_document']),
   "sessionType": zod.string(),
@@ -348,8 +348,8 @@ export const FinalizeRecordResponse = zod.object({
   "professionalNotes": zod.string().nullable(),
   "interventions": zod.string().nullable(),
   "status": zod.enum(['draft', 'finalized']),
-  "version": zod.number().int().min(1),
-  "previousVersionId": zod.string().uuid().nullable(),
+  "version": zod.int().min(1),
+  "previousVersionId": zod.uuid().nullable(),
   "amendmentReason": zod.string().nullable(),
   "professionalId": zod.string(),
   "createdAt": zod.coerce.date(),
@@ -362,7 +362,7 @@ export const FinalizeRecordResponse = zod.object({
  * @summary Create a traceable amendment as a new version
  */
 export const AmendRecordParams = zod.object({
-  "recordId": zod.coerce.string().uuid()
+  "recordId": zod.uuid()
 })
 
 export const amendRecordBodyJustificationMin = 5;
@@ -395,9 +395,9 @@ export const AmendRecordBody = zod.object({
 
 
 export const AmendRecordResponse = zod.object({
-  "id": zod.string().uuid(),
-  "patientId": zod.string().uuid(),
-  "appointmentId": zod.string().uuid().nullable(),
+  "id": zod.uuid(),
+  "patientId": zod.uuid(),
+  "appointmentId": zod.uuid().nullable(),
   "occurredAt": zod.coerce.date(),
   "recordKind": zod.enum(['psychological_record', 'restricted_document']),
   "sessionType": zod.string(),
@@ -406,8 +406,8 @@ export const AmendRecordResponse = zod.object({
   "professionalNotes": zod.string().nullable(),
   "interventions": zod.string().nullable(),
   "status": zod.enum(['draft', 'finalized']),
-  "version": zod.number().int().min(1),
-  "previousVersionId": zod.string().uuid().nullable(),
+  "version": zod.int().min(1),
+  "previousVersionId": zod.uuid().nullable(),
   "amendmentReason": zod.string().nullable(),
   "professionalId": zod.string(),
   "createdAt": zod.coerce.date(),
@@ -420,16 +420,16 @@ export const AmendRecordResponse = zod.object({
  * @summary View record history and amendments
  */
 export const ListRecordVersionsParams = zod.object({
-  "recordId": zod.coerce.string().uuid()
+  "recordId": zod.uuid()
 })
 
 
 
 
 export const ListRecordVersionsResponseItem = zod.object({
-  "id": zod.string().uuid(),
-  "patientId": zod.string().uuid(),
-  "appointmentId": zod.string().uuid().nullable(),
+  "id": zod.uuid(),
+  "patientId": zod.uuid(),
+  "appointmentId": zod.uuid().nullable(),
   "occurredAt": zod.coerce.date(),
   "recordKind": zod.enum(['psychological_record', 'restricted_document']),
   "sessionType": zod.string(),
@@ -438,8 +438,8 @@ export const ListRecordVersionsResponseItem = zod.object({
   "professionalNotes": zod.string().nullable(),
   "interventions": zod.string().nullable(),
   "status": zod.enum(['draft', 'finalized']),
-  "version": zod.number().int().min(1),
-  "previousVersionId": zod.string().uuid().nullable(),
+  "version": zod.int().min(1),
+  "previousVersionId": zod.uuid().nullable(),
   "amendmentReason": zod.string().nullable(),
   "professionalId": zod.string(),
   "createdAt": zod.coerce.date(),
@@ -463,11 +463,11 @@ export const listAppointmentsResponseAppointmentTypeMax = 100;
 
 
 export const ListAppointmentsResponseItem = zod.object({
-  "id": zod.string().uuid(),
-  "patientId": zod.string().uuid(),
+  "id": zod.uuid(),
+  "patientId": zod.uuid(),
   "patientName": zod.string(),
   "scheduledAt": zod.coerce.date(),
-  "durationMinutes": zod.number().int(),
+  "durationMinutes": zod.int(),
   "appointmentType": zod.string().max(listAppointmentsResponseAppointmentTypeMax),
   "status": zod.enum(['scheduled', 'confirmed', 'completed', 'canceled', 'no_show']),
   "createdAt": zod.coerce.date()
@@ -487,9 +487,9 @@ export const createAppointmentBodyAppointmentTypeMax = 100;
 
 
 export const CreateAppointmentBody = zod.object({
-  "patientId": zod.string().uuid(),
+  "patientId": zod.uuid(),
   "scheduledAt": zod.coerce.date(),
-  "durationMinutes": zod.number().int().min(createAppointmentBodyDurationMinutesMin).max(createAppointmentBodyDurationMinutesMax),
+  "durationMinutes": zod.int().min(createAppointmentBodyDurationMinutesMin).max(createAppointmentBodyDurationMinutesMax),
   "appointmentType": zod.string().min(createAppointmentBodyAppointmentTypeMin).max(createAppointmentBodyAppointmentTypeMax)
 })
 
@@ -498,11 +498,11 @@ export const createAppointmentResponseAppointmentTypeMax = 100;
 
 
 export const CreateAppointmentResponse = zod.object({
-  "id": zod.string().uuid(),
-  "patientId": zod.string().uuid(),
+  "id": zod.uuid(),
+  "patientId": zod.uuid(),
   "patientName": zod.string(),
   "scheduledAt": zod.coerce.date(),
-  "durationMinutes": zod.number().int(),
+  "durationMinutes": zod.int(),
   "appointmentType": zod.string().max(createAppointmentResponseAppointmentTypeMax),
   "status": zod.enum(['scheduled', 'confirmed', 'completed', 'canceled', 'no_show']),
   "createdAt": zod.coerce.date()
@@ -513,7 +513,7 @@ export const CreateAppointmentResponse = zod.object({
  * @summary Reschedule or update appointment status
  */
 export const UpdateAppointmentParams = zod.object({
-  "appointmentId": zod.coerce.string().uuid()
+  "appointmentId": zod.uuid()
 })
 
 export const updateAppointmentBodyDurationMinutesMin = 15;
@@ -526,7 +526,7 @@ export const updateAppointmentBodyAppointmentTypeMax = 100;
 
 export const UpdateAppointmentBody = zod.object({
   "scheduledAt": zod.coerce.date().optional(),
-  "durationMinutes": zod.number().int().min(updateAppointmentBodyDurationMinutesMin).max(updateAppointmentBodyDurationMinutesMax).optional(),
+  "durationMinutes": zod.int().min(updateAppointmentBodyDurationMinutesMin).max(updateAppointmentBodyDurationMinutesMax).optional(),
   "appointmentType": zod.string().min(updateAppointmentBodyAppointmentTypeMin).max(updateAppointmentBodyAppointmentTypeMax).optional(),
   "status": zod.enum(['scheduled', 'confirmed', 'completed', 'canceled', 'no_show']).optional()
 })
@@ -536,11 +536,11 @@ export const updateAppointmentResponseAppointmentTypeMax = 100;
 
 
 export const UpdateAppointmentResponse = zod.object({
-  "id": zod.string().uuid(),
-  "patientId": zod.string().uuid(),
+  "id": zod.uuid(),
+  "patientId": zod.uuid(),
   "patientName": zod.string(),
   "scheduledAt": zod.coerce.date(),
-  "durationMinutes": zod.number().int(),
+  "durationMinutes": zod.int(),
   "appointmentType": zod.string().max(updateAppointmentResponseAppointmentTypeMax),
   "status": zod.enum(['scheduled', 'confirmed', 'completed', 'canceled', 'no_show']),
   "createdAt": zod.coerce.date()
@@ -560,16 +560,16 @@ export const GetReportsQueryParams = zod.object({
 })
 
 export const GetReportsResponse = zod.object({
-  "activePatients": zod.number().int(),
-  "archivedPatients": zod.number().int(),
-  "sessionsThisYear": zod.number().int(),
+  "activePatients": zod.int(),
+  "archivedPatients": zod.int(),
+  "sessionsThisYear": zod.int(),
   "appointmentsByStatus": zod.array(zod.object({
   "status": zod.string(),
-  "count": zod.number().int()
+  "count": zod.int()
 })),
   "monthlySessions": zod.array(zod.object({
   "month": zod.string(),
-  "count": zod.number().int()
+  "count": zod.int()
 }))
 })
 
@@ -578,8 +578,8 @@ export const GetReportsResponse = zod.object({
  * @summary List authorized document export history
  */
 export const ListDocumentsResponseItem = zod.object({
-  "id": zod.string().uuid(),
-  "patientId": zod.string().uuid().nullable(),
+  "id": zod.uuid(),
+  "patientId": zod.uuid().nullable(),
   "title": zod.string(),
   "documentType": zod.string(),
   "createdAt": zod.coerce.date(),
@@ -592,7 +592,7 @@ export const ListDocumentsResponse = zod.array(ListDocumentsResponseItem)
  * @summary Generate an authorized PDF without a permanent public link
  */
 export const ExportDocumentBody = zod.object({
-  "patientId": zod.string().uuid().nullish(),
+  "patientId": zod.uuid().nullish(),
   "documentType": zod.enum(['attendance_declaration', 'administrative_history', 'authorized_patient_record']),
   "from": zod.coerce.date().nullish(),
   "to": zod.coerce.date().nullish()
@@ -661,7 +661,7 @@ export const ListAuditEventsQueryParams = zod.object({
 })
 
 export const ListAuditEventsResponseItem = zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "actorId": zod.string(),
   "eventType": zod.string(),
   "entityType": zod.string(),
