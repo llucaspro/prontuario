@@ -108,7 +108,7 @@ const statusTone = (status: string) => ['initial_evaluation', 'scheduled'].inclu
   ['paused', 'canceled', 'draft'].includes(status) ? 'badge badge-muted' :
   ['completed', 'finalized', 'confirmed'].includes(status) ? 'badge badge-blue' :
   ['no_show'].includes(status) ? 'badge badge-red' : 'badge';
-const invalidate = async (client: ReturnType<typeof useQueryClient>, keys: unknown[][]) => {
+const invalidate = async (client: ReturnType<typeof useQueryClient>, keys: readonly (readonly unknown[])[]) => {
   await Promise.all(keys.map((queryKey) => client.invalidateQueries({ queryKey })));
 };
 
@@ -480,7 +480,17 @@ function DocumentsPage() {
   const form = useForm<{ documentType: DocumentExportInput['documentType']; patientId: string; from: string; to: string }>({
     defaultValues: { documentType: 'attendance_declaration', patientId: '', from: '', to: '' },
   });
+  const documentType = form.watch('documentType');
   const download = async (input: DocumentExportInput) => {
+    if (input.documentType === 'authorized_patient_record' && !input.patientId) {
+      toast.error('Selecione um paciente para exportar o prontuário.');
+      return;
+    }
+    if (input.documentType === 'authorized_patient_record' && !window.confirm('Confirma que esta exportação está autorizada e é necessária para a finalidade informada?')) return;
+    if (input.documentType === 'attendance_declaration' && (!input.patientId || !input.from || !input.to)) {
+      toast.error('Selecione o paciente e informe o período da declaração.');
+      return;
+    }
     setBusy(true);
     try {
       const blob = await exportDocument(input, { credentials: 'include' });
@@ -498,8 +508,8 @@ function DocumentsPage() {
   };
   return <><PageTitle title="Documentos" subtitle="Exporte documentos em PDF somente quando houver autorização." />
     <Panel title="Gerar PDF autorizado"><form onSubmit={form.handleSubmit((values) => void download({ documentType: values.documentType, patientId: values.patientId || null, from: values.from || null, to: values.to || null }))} data-testid="form-document-export">
-      <div className="form-grid"><Field label="Tipo de documento"><select className="form-control" {...form.register('documentType')} data-testid="select-document-type"><option value="attendance_declaration">Declaração de comparecimento</option><option value="administrative_history">Histórico administrativo</option><option value="authorized_patient_record">Prontuário autorizado</option></select></Field><Field label="Paciente (quando aplicável)"><select className="form-control" {...form.register('patientId')} data-testid="select-document-patient"><option value="">Sem paciente específico</option>{patients.data?.map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}</select></Field></div>
-      <div className="form-grid"><Field label="De"><input type="date" className="form-control" {...form.register('from')} data-testid="input-document-from" /></Field><Field label="Até"><input type="date" className="form-control" {...form.register('to')} data-testid="input-document-to" /></Field></div>
+      <div className="form-grid"><Field label="Tipo de documento"><select className="form-control" {...form.register('documentType')} data-testid="select-document-type"><option value="attendance_declaration">Declaração de comparecimento</option><option value="administrative_history">Histórico administrativo</option><option value="authorized_patient_record">Prontuário autorizado</option></select></Field><Field label="Paciente (obrigatório para dados clínicos)"><select className="form-control" {...form.register('patientId')} data-testid="select-document-patient"><option value="">Sem paciente específico</option>{patients.data?.map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}</select></Field></div>
+      <div className="form-grid"><Field label="De"><input type="date" required={documentType === 'attendance_declaration'} className="form-control" {...form.register('from')} data-testid="input-document-from" /></Field><Field label="Até"><input type="date" required={documentType === 'attendance_declaration'} className="form-control" {...form.register('to')} data-testid="input-document-to" /></Field></div>
       <Button primary type="submit" disabled={busy} data-testid="button-export-pdf"><Download size={15} />{busy ? 'Gerando PDF…' : 'Gerar e baixar PDF'}</Button>
       <p className="muted" style={{ fontSize: 11, marginBottom: 0 }}>O PDF é baixado diretamente. Nenhum link público permanente é criado.</p>
     </form></Panel>

@@ -279,6 +279,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Appointment"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /appointments/{appointmentId}:
     patch:
       operationId: updateAppointment
@@ -299,6 +301,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Appointment"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /reports:
     get:
       operationId: getReports
