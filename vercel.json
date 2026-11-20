@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm --filter @workspace/pensare run build",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "outputDirectory": "artifacts/pensare/dist/public",
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/sign-in/:path*", "destination": "/index.html" },
+    { "source": "/sign-up/:path*", "destination": "/index.html" },
+    { "source": "/dashboard", "destination": "/index.html" },
+    { "source": "/patients", "destination": "/index.html" },
+    { "source": "/patients/:id", "destination": "/index.html" },
+    { "source": "/records", "destination": "/index.html" },
+    { "source": "/agenda", "destination": "/index.html" },
+    { "source": "/appointments", "destination": "/index.html" },
+    { "source": "/reports", "destination": "/index.html" },
+    { "source": "/documents", "destination": "/index.html" },
+    { "source": "/settings", "destination": "/index.html" },
+    { "source": "/security", "destination": "/index.html" }
+  ]
+}
