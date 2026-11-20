@@ -223,6 +223,72 @@ function AppShell({ children }: { children: ReactNode }) {
   </div>;
 }
 
+function DashboardCalendar() {
+  const [monthOffset, setMonthOffset] = useState(0);
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  monthStart.setMonth(monthStart.getMonth() + monthOffset);
+  const nextMonthStart = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1);
+  const params = useMemo(
+    () => ({ from: monthStart.toISOString(), to: nextMonthStart.toISOString() }),
+    [monthStart.toISOString(), nextMonthStart.toISOString()],
+  );
+  const query = useListAppointments(params, {
+    query: { queryKey: getListAppointmentsQueryKey(params) },
+  });
+  const appointmentCounts = new Map<number, number>();
+  for (const appointment of query.data || []) {
+    const day = new Date(appointment.scheduledAt).getDate();
+    appointmentCounts.set(day, (appointmentCounts.get(day) || 0) + 1);
+  }
+  const dayCount = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
+  const leadingDays = (monthStart.getDay() + 6) % 7;
+  const today = new Date();
+  const monthLabel = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(monthStart);
+  const calendarCells: Array<number | null> = [
+    ...Array.from({ length: leadingDays }, () => null),
+    ...Array.from({ length: dayCount }, (_, index) => index + 1),
+  ];
+  while (calendarCells.length % 7) calendarCells.push(null);
+  const calendarWeeks = Array.from(
+    { length: calendarCells.length / 7 },
+    (_, index) => calendarCells.slice(index * 7, index * 7 + 7),
+  );
+
+  return <Panel title="Calendário do mês" action={<div className="dashboard-calendar-actions">
+    <Button className="btn-small" onClick={() => setMonthOffset((offset) => offset - 1)} aria-label="Mês anterior" data-testid="button-dashboard-previous-month"><ChevronLeft size={14} /></Button>
+    <b aria-live="polite">{monthLabel}</b>
+    <Button className="btn-small" onClick={() => setMonthOffset((offset) => offset + 1)} aria-label="Próximo mês" data-testid="button-dashboard-next-month"><ChevronRight size={14} /></Button>
+    <Link href="/agenda" className="btn btn-small" data-testid="link-dashboard-calendar-agenda">Abrir agenda</Link>
+  </div>}>
+    <table className="dashboard-calendar-table" aria-label={`Calendário de ${monthLabel}`}>
+      <thead><tr>{['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map((weekday) =>
+        <th scope="col" key={weekday}>{weekday}</th>,
+      )}</tr></thead>
+      <tbody>{calendarWeeks.map((week, weekIndex) => <tr key={weekIndex}>{week.map((day, dayIndex) => {
+        if (day === null) return <td key={`blank-${dayIndex}`} aria-hidden="true" />;
+        const count = appointmentCounts.get(day) || 0;
+        const isToday = monthStart.getFullYear() === today.getFullYear()
+          && monthStart.getMonth() === today.getMonth()
+          && day === today.getDate();
+        return <td
+          className={`${isToday ? 'is-today ' : ''}${count ? 'has-appointments' : ''}`}
+          aria-label={`${day} de ${monthLabel}${count ? `, ${count} atendimentos` : ''}`}
+          data-testid={`dashboard-calendar-day-${day}`}
+          key={day}
+        >
+          <span>{day}</span>
+          {count > 0 && <small>{count}</small>}
+        </td>;
+      })}</tr>)}</tbody>
+    </table>
+    {query.isLoading && <p className="muted" aria-live="polite" style={{ margin: '12px 0 0', fontSize: 12 }}>Carregando atendimentos do mês…</p>}
+    {query.isError && <p className="muted" role="alert" style={{ margin: '12px 0 0', fontSize: 12 }}>Não foi possível carregar os atendimentos deste mês.</p>}
+    {!query.isLoading && !query.isError && <p className="muted" style={{ margin: '12px 0 0', fontSize: 12 }}>{query.data?.length || 0} atendimentos no mês</p>}
+  </Panel>;
+}
+
 function DashboardPage() {
   const query = useGetDashboard({ query: { queryKey: getGetDashboardQueryKey() } });
   if (query.isLoading || query.isError) return <QueryState loading={query.isLoading} error={query.isError} retry={() => void query.refetch()} />;
@@ -242,6 +308,7 @@ function DashboardPage() {
         {data?.upcomingAppointments?.length ? data.upcomingAppointments.slice(0, 6).map((item) => <div className="row-list" key={item.id} data-testid={`appointment-upcoming-${item.id}`}><div className="kpi-symbol" style={{ width: 36, height: 36 }}><CalendarDays size={16} /></div><div className="row-list-main"><b style={{ fontWeight: 600, fontSize: 13 }}>{shortDate(item.scheduledAt)}</b><small>{time(item.scheduledAt)} · {item.patientName}</small></div></div>) : <EmptyState title="Agenda em aberto" detail="Nenhum atendimento futuro cadastrado." />}
       </Panel>
     </div>
+    <div style={{ marginTop: 18 }}><DashboardCalendar /></div>
     <Panel title="Atividade recente" style={{ marginTop: 18 }}>
       {data?.recentActivity?.length ? data.recentActivity.map((item) => <div className="row-list" key={item.id} data-testid={`activity-${item.id}`}><div className="kpi-symbol" style={{ width: 34, height: 34 }}><Activity size={15} /></div><div className="row-list-main"><b style={{ fontWeight: 600, fontSize: 13 }}>{item.category === 'record' ? 'Registro clínico atualizado' : item.category === 'appointment' ? 'Atendimento atualizado' : 'Atividade da clínica'}</b><small>{shortDate(item.occurredAt)}</small></div><span className="muted" style={{ fontSize: 12 }}>Atualização</span></div>) : <EmptyState title="Sem atividade recente" detail="As atualizações administrativas aparecerão aqui." />}
     </Panel>
