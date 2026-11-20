@@ -3,13 +3,20 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Pensare clinic-management API. All application routes require an authenticated professional.
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: dashboard
+  - name: patients
+  - name: records
+  - name: appointments
+  - name: reports
+  - name: documents
+  - name: profile
+  - name: security
 paths:
   /healthz:
     get:
@@ -24,13 +31,667 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [dashboard]
+      summary: Get a privacy-conscious dashboard summary
+      responses:
+        "200":
+          description: Dashboard data without clinical content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+  /patients:
+    get:
+      operationId: listPatients
+      tags: [patients]
+      summary: Search and filter patients
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [in_follow_up, initial_evaluation, paused, discharged]
+        - in: query
+          name: includeArchived
+          schema: { type: boolean, default: false }
+      responses:
+        "200":
+          description: Patients belonging to the authenticated professional
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientList"
+    post:
+      operationId: createPatient
+      tags: [patients]
+      summary: Create a patient record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatientInput"
+      responses:
+        "201":
+          description: Patient created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+  /patients/{patientId}:
+    get:
+      operationId: getPatient
+      tags: [patients]
+      summary: Get one patient
+      parameters:
+        - $ref: "#/components/parameters/PatientId"
+      responses:
+        "200":
+          description: Patient details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updatePatient
+      tags: [patients]
+      summary: Update administrative patient details
+      parameters:
+        - $ref: "#/components/parameters/PatientId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatientUpdate"
+      responses:
+        "200":
+          description: Patient updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+  /patients/{patientId}/archive:
+    post:
+      operationId: archivePatient
+      tags: [patients]
+      summary: Archive a patient without deleting their records
+      parameters:
+        - $ref: "#/components/parameters/PatientId"
+      responses:
+        "200":
+          description: Patient archived
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+  /patients/{patientId}/records:
+    get:
+      operationId: listPatientRecords
+      tags: [records]
+      summary: List a patient's chronological clinical record
+      parameters:
+        - $ref: "#/components/parameters/PatientId"
+      responses:
+        "200":
+          description: Chronological record entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecordList"
+    post:
+      operationId: createRecord
+      tags: [records]
+      summary: Create a draft clinical record entry
+      parameters:
+        - $ref: "#/components/parameters/PatientId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordInput"
+      responses:
+        "201":
+          description: Draft created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecordEntry"
+  /records/{recordId}:
+    patch:
+      operationId: updateRecord
+      tags: [records]
+      summary: Update an unfinalized record draft
+      parameters:
+        - $ref: "#/components/parameters/RecordId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordUpdate"
+      responses:
+        "200":
+          description: Draft updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecordEntry"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /records/{recordId}/finalize:
+    post:
+      operationId: finalizeRecord
+      tags: [records]
+      summary: Finalize a draft and make it immutable
+      parameters:
+        - $ref: "#/components/parameters/RecordId"
+      responses:
+        "200":
+          description: Finalized record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecordEntry"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /records/{recordId}/amendments:
+    post:
+      operationId: amendRecord
+      tags: [records]
+      summary: Create a traceable amendment as a new version
+      parameters:
+        - $ref: "#/components/parameters/RecordId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordAmendmentInput"
+      responses:
+        "201":
+          description: Amendment version created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecordEntry"
+  /records/{recordId}/versions:
+    get:
+      operationId: listRecordVersions
+      tags: [records]
+      summary: View record history and amendments
+      parameters:
+        - $ref: "#/components/parameters/RecordId"
+      responses:
+        "200":
+          description: Version history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecordList"
+  /appointments:
+    get:
+      operationId: listAppointments
+      tags: [appointments]
+      summary: List appointments for a date range
+      parameters:
+        - in: query
+          name: from
+          schema: { type: string, format: date-time }
+        - in: query
+          name: to
+          schema: { type: string, format: date-time }
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [scheduled, confirmed, completed, canceled, no_show]
+      responses:
+        "200":
+          description: Appointments for the authenticated professional
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentList"
+    post:
+      operationId: createAppointment
+      tags: [appointments]
+      summary: Schedule an appointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppointmentInput"
+      responses:
+        "201":
+          description: Appointment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+  /appointments/{appointmentId}:
+    patch:
+      operationId: updateAppointment
+      tags: [appointments]
+      summary: Reschedule or update appointment status
+      parameters:
+        - $ref: "#/components/parameters/AppointmentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppointmentUpdate"
+      responses:
+        "200":
+          description: Appointment updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+  /reports:
+    get:
+      operationId: getReports
+      tags: [reports]
+      summary: Get administrative aggregates without clinical notes
+      parameters:
+        - in: query
+          name: year
+          schema: { type: integer, minimum: 2020, maximum: 2100 }
+      responses:
+        "200":
+          description: Administrative report summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportSummary"
+  /documents:
+    get:
+      operationId: listDocuments
+      tags: [documents]
+      summary: List authorized document export history
+      responses:
+        "200":
+          description: Recent export metadata; no permanent public file URLs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentList"
+  /documents/export:
+    post:
+      operationId: exportDocument
+      tags: [documents]
+      summary: Generate an authorized PDF without a permanent public link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentExportInput"
+      responses:
+        "200":
+          description: Authenticated PDF response
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+  /profile:
+    get:
+      operationId: getProfile
+      tags: [profile]
+      summary: Get the authenticated professional's profile and preferences
+      responses:
+        "200":
+          description: Professional profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfessionalProfile"
+    patch:
+      operationId: updateProfile
+      tags: [profile]
+      summary: Update the authenticated professional's profile and preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfessionalProfileUpdate"
+      responses:
+        "200":
+          description: Updated professional profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfessionalProfile"
+  /security/audit:
+    get:
+      operationId: listAuditEvents
+      tags: [security]
+      summary: List access and administrative audit events
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        "200":
+          description: Audit events without clinical content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditEventList"
 components:
+  parameters:
+    PatientId:
+      in: path
+      name: patientId
+      required: true
+      schema: { type: string, format: uuid }
+    RecordId:
+      in: path
+      name: recordId
+      required: true
+      schema: { type: string, format: uuid }
+    AppointmentId:
+      in: path
+      name: appointmentId
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    NotFound:
+      description: Record not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    Conflict:
+      description: Operation conflicts with record state
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
   schemas:
     HealthStatus:
       type: object
       properties:
+        status: { type: string }
+      required: [status]
+    ApiError:
+      type: object
+      properties:
+        error: { type: string }
+      required: [error]
+    Patient:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        fullName: { type: string }
+        email: { type: ["string", "null"], format: email }
+        phone: { type: ["string", "null"] }
+        birthDate: { type: ["string", "null"], format: date }
         status:
           type: string
-      required:
-        - status
-
+          enum: [in_follow_up, initial_evaluation, paused, discharged]
+        startDate: { type: string, format: date }
+        createdAt: { type: string, format: date-time }
+        archivedAt: { type: ["string", "null"], format: date-time }
+      required: [id, fullName, email, phone, birthDate, status, startDate, createdAt, archivedAt]
+    PatientInput:
+      type: object
+      properties:
+        fullName: { type: string, minLength: 2, maxLength: 160 }
+        email: { type: ["string", "null"], format: email }
+        phone: { type: ["string", "null"], maxLength: 40 }
+        birthDate: { type: ["string", "null"], format: date }
+        status:
+          type: string
+          enum: [in_follow_up, initial_evaluation, paused, discharged]
+        startDate: { type: string, format: date }
+      required: [fullName, status, startDate]
+    PatientUpdate:
+      type: object
+      properties:
+        fullName: { type: string, minLength: 2, maxLength: 160 }
+        email: { type: ["string", "null"], format: email }
+        phone: { type: ["string", "null"], maxLength: 40 }
+        birthDate: { type: ["string", "null"], format: date }
+        status:
+          type: string
+          enum: [in_follow_up, initial_evaluation, paused, discharged]
+        startDate: { type: string, format: date }
+      minProperties: 1
+    PatientList:
+      type: array
+      items: { $ref: "#/components/schemas/Patient" }
+    Appointment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        patientId: { type: string, format: uuid }
+        patientName: { type: string }
+        scheduledAt: { type: string, format: date-time }
+        durationMinutes: { type: integer }
+        appointmentType: { type: string, maxLength: 100 }
+        status:
+          type: string
+          enum: [scheduled, confirmed, completed, canceled, no_show]
+        createdAt: { type: string, format: date-time }
+      required: [id, patientId, patientName, scheduledAt, durationMinutes, appointmentType, status, createdAt]
+    AppointmentInput:
+      type: object
+      properties:
+        patientId: { type: string, format: uuid }
+        scheduledAt: { type: string, format: date-time }
+        durationMinutes: { type: integer, minimum: 15, maximum: 180 }
+        appointmentType: { type: string, minLength: 2, maxLength: 100 }
+      required: [patientId, scheduledAt, durationMinutes, appointmentType]
+    AppointmentUpdate:
+      type: object
+      properties:
+        scheduledAt: { type: string, format: date-time }
+        durationMinutes: { type: integer, minimum: 15, maximum: 180 }
+        appointmentType: { type: string, minLength: 2, maxLength: 100 }
+        status:
+          type: string
+          enum: [scheduled, confirmed, completed, canceled, no_show]
+      minProperties: 1
+    AppointmentList:
+      type: array
+      items: { $ref: "#/components/schemas/Appointment" }
+    RecordEntry:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        patientId: { type: string, format: uuid }
+        appointmentId: { type: ["string", "null"], format: uuid }
+        occurredAt: { type: string, format: date-time }
+        recordKind:
+          type: string
+          enum: [psychological_record, restricted_document]
+        sessionType: { type: string }
+        goal: { type: ["string", "null"] }
+        progress: { type: string }
+        professionalNotes: { type: ["string", "null"] }
+        interventions: { type: ["string", "null"] }
+        status: { type: string, enum: [draft, finalized] }
+        version: { type: integer, minimum: 1 }
+        previousVersionId: { type: ["string", "null"], format: uuid }
+        amendmentReason: { type: ["string", "null"] }
+        professionalId: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        finalizedAt: { type: ["string", "null"], format: date-time }
+      required: [id, patientId, appointmentId, occurredAt, recordKind, sessionType, goal, progress, professionalNotes, interventions, status, version, previousVersionId, amendmentReason, professionalId, createdAt, updatedAt, finalizedAt]
+    RecordInput:
+      type: object
+      properties:
+        appointmentId: { type: ["string", "null"], format: uuid }
+        occurredAt: { type: string, format: date-time }
+        recordKind:
+          type: string
+          enum: [psychological_record, restricted_document]
+        sessionType: { type: string, minLength: 2, maxLength: 100 }
+        goal: { type: ["string", "null"], maxLength: 2000 }
+        progress: { type: string, minLength: 1, maxLength: 20000 }
+        professionalNotes: { type: ["string", "null"], maxLength: 20000 }
+        interventions: { type: ["string", "null"], maxLength: 10000 }
+      required: [occurredAt, recordKind, sessionType, progress]
+    RecordUpdate:
+      type: object
+      properties:
+        occurredAt: { type: string, format: date-time }
+        recordKind:
+          type: string
+          enum: [psychological_record, restricted_document]
+        sessionType: { type: string, minLength: 2, maxLength: 100 }
+        goal: { type: ["string", "null"], maxLength: 2000 }
+        progress: { type: string, minLength: 1, maxLength: 20000 }
+        professionalNotes: { type: ["string", "null"], maxLength: 20000 }
+        interventions: { type: ["string", "null"], maxLength: 10000 }
+      minProperties: 1
+    RecordAmendmentInput:
+      type: object
+      properties:
+        justification: { type: string, minLength: 5, maxLength: 2000 }
+        occurredAt: { type: string, format: date-time }
+        sessionType: { type: string, minLength: 2, maxLength: 100 }
+        goal: { type: ["string", "null"], maxLength: 2000 }
+        progress: { type: string, minLength: 1, maxLength: 20000 }
+        professionalNotes: { type: ["string", "null"], maxLength: 20000 }
+        interventions: { type: ["string", "null"], maxLength: 10000 }
+      required: [justification, occurredAt, sessionType, progress]
+    RecordList:
+      type: array
+      items: { $ref: "#/components/schemas/RecordEntry" }
+    DashboardAppointment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        patientId: { type: string, format: uuid }
+        patientName: { type: string }
+        scheduledAt: { type: string, format: date-time }
+        appointmentType: { type: string }
+        status: { type: string }
+      required: [id, patientId, patientName, scheduledAt, appointmentType, status]
+    ActivityItem:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        label: { type: string }
+        occurredAt: { type: string, format: date-time }
+        category: { type: string }
+      required: [id, label, occurredAt, category]
+    DashboardSummary:
+      type: object
+      properties:
+        activePatients: { type: integer }
+        sessionsThisMonth: { type: integer }
+        appointmentsToday: { type: integer }
+        todayAppointments:
+          type: array
+          items: { $ref: "#/components/schemas/DashboardAppointment" }
+        upcomingAppointments:
+          type: array
+          items: { $ref: "#/components/schemas/DashboardAppointment" }
+        recentActivity:
+          type: array
+          items: { $ref: "#/components/schemas/ActivityItem" }
+      required: [activePatients, sessionsThisMonth, appointmentsToday, todayAppointments, upcomingAppointments, recentActivity]
+    MonthlyCount:
+      type: object
+      properties:
+        month: { type: string }
+        count: { type: integer }
+      required: [month, count]
+    ReportSummary:
+      type: object
+      properties:
+        activePatients: { type: integer }
+        archivedPatients: { type: integer }
+        sessionsThisYear: { type: integer }
+        appointmentsByStatus:
+          type: array
+          items:
+            type: object
+            properties:
+              status: { type: string }
+              count: { type: integer }
+            required: [status, count]
+        monthlySessions:
+          type: array
+          items: { $ref: "#/components/schemas/MonthlyCount" }
+      required: [activePatients, archivedPatients, sessionsThisYear, appointmentsByStatus, monthlySessions]
+    Document:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        patientId: { type: ["string", "null"], format: uuid }
+        title: { type: string }
+        documentType: { type: string }
+        createdAt: { type: string, format: date-time }
+        createdBy: { type: string }
+      required: [id, patientId, title, documentType, createdAt, createdBy]
+    DocumentList:
+      type: array
+      items: { $ref: "#/components/schemas/Document" }
+    DocumentExportInput:
+      type: object
+      properties:
+        patientId: { type: ["string", "null"], format: uuid }
+        documentType:
+          type: string
+          enum: [attendance_declaration, administrative_history, authorized_patient_record]
+        from: { type: ["string", "null"], format: date }
+        to: { type: ["string", "null"], format: date }
+      required: [documentType]
+    ProfessionalProfile:
+      type: object
+      properties:
+        displayName: { type: string }
+        professionalRegistration: { type: ["string", "null"] }
+        clinicName: { type: ["string", "null"] }
+        preferences:
+          type: object
+          properties:
+            remindersEnabled: { type: boolean }
+            compactMode: { type: boolean }
+          required: [remindersEnabled, compactMode]
+      required: [displayName, professionalRegistration, clinicName, preferences]
+    ProfessionalProfileUpdate:
+      type: object
+      properties:
+        displayName: { type: string, minLength: 2, maxLength: 120 }
+        professionalRegistration: { type: ["string", "null"], maxLength: 60 }
+        clinicName: { type: ["string", "null"], maxLength: 160 }
+        preferences:
+          type: object
+          properties:
+            remindersEnabled: { type: boolean }
+            compactMode: { type: boolean }
+          required: [remindersEnabled, compactMode]
+      minProperties: 1
+    AuditEvent:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        actorId: { type: string }
+        eventType: { type: string }
+        entityType: { type: string }
+        entityId: { type: ["string", "null"] }
+        occurredAt: { type: string, format: date-time }
+        summary: { type: string }
+      required: [id, actorId, eventType, entityType, entityId, occurredAt, summary]
+    AuditEventList:
+      type: array
+      items: { $ref: "#/components/schemas/AuditEvent" }

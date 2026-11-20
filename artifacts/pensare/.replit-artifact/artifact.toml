@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Pensare"
+description = "Sistema de gestão psicológica para organizar pacientes, agenda, prontuários e documentos com privacidade em primeiro lugar."
+version = "1.0.0"
+id = "artifacts/pensare"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23626
+
+[services.development]
+run = "pnpm --filter @workspace/pensare run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/pensare", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/pensare/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23626"
+BASE_PATH = "/"
