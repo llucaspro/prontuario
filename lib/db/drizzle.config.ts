@@ -1,12 +1,12 @@
 import { defineConfig } from "drizzle-kit";
 import path from "path";
+import { getDatabaseConnectionString } from "./src/connection";
 
-const connectionString =
-  process.env.NEON_DATABASE_URL ?? process.env.DATABASE_URL;
+const connectionString = getDatabaseConnectionString();
 
 if (!connectionString) {
   throw new Error(
-    "Set NEON_DATABASE_URL or provision a Replit database before running Drizzle.",
+    "Set SUPABASE_DATABASE_URL, NEON_DATABASE_URL, or provision a Replit database before running Drizzle.",
   );
 }
 

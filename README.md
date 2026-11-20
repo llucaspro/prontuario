@@ -5,9 +5,11 @@ Sistema web para organizar a rotina de profissionais de psicologia: pacientes, p
 ## Desenvolvimento
 
 - A prévia usa o serviço web `artifacts/pensare` e a API compartilhada `artifacts/api-server`.
-- O banco PostgreSQL do ambiente de desenvolvimento já contém as tabelas e políticas RLS do Pensare.
+- O banco principal é PostgreSQL no Supabase; configure `SUPABASE_DATABASE_URL` com a URI do Session Pooler (porta 5432). A conexão é feita com TLS.
+- `SUPABASE_DATABASE_URL` tem prioridade sobre `NEON_DATABASE_URL` e `DATABASE_URL`. Para aplicar o esquema, execute `pnpm --filter @workspace/db run push`.
+- A troca foi configurada para iniciar no Supabase vazio; os dados anteriores permanecem no banco de origem e não foram copiados.
 - Execute `pnpm run typecheck` para verificar os pacotes do workspace.
-- O servidor de API exige `DATABASE_URL`, as chaves Clerk gerenciadas pelo Replit e `SESSION_SECRET` para cifrar os campos clínicos.
+- O servidor de API exige uma URL PostgreSQL, as chaves Clerk gerenciadas pelo Replit e `SESSION_SECRET` para cifrar os campos clínicos.
 - Use exclusivamente dados fictícios durante desenvolvimento e validação.
 
 ## Proteções implementadas

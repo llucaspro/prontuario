@@ -1,15 +1,15 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
+import { getDatabaseConnectionString } from "./connection";
 import * as schema from "./schema";
 
 const { Pool } = pg;
 
-const connectionString =
-  process.env.NEON_DATABASE_URL ?? process.env.DATABASE_URL;
+const connectionString = getDatabaseConnectionString();
 
 if (!connectionString) {
   throw new Error(
-    "Set NEON_DATABASE_URL or provision a Replit database before starting the app.",
+    "Set SUPABASE_DATABASE_URL, NEON_DATABASE_URL, or provision a Replit database before starting the app.",
   );
 }
 

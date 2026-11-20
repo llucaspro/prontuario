@@ -1,2 +1,3 @@
 - [Neon connection for Pensare](neon-connection.md) — this project's Neon compute has pooling disabled; use the direct PostgreSQL URL, not the pooler URL.
+- [Supabase connection for Pensare](supabase-connection.md) — use the Session Pooler on 5432 with TLS; Node's pg URL parsing needs its compatibility mode for this certificate chain.
 - [Vercel hosting and Clerk](vercel-clerk.md) — Vercel needs explicit Production Clerk keys; Replit's automatic development/production key switch does not cover Vercel.
