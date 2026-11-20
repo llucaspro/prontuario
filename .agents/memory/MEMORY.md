@@ -1,0 +1,1 @@
+- [Neon connection for Pensare](neon-connection.md) — this project's Neon compute has pooling disabled; use the direct PostgreSQL URL, not the pooler URL.
