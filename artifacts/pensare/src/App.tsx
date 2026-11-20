@@ -132,9 +132,30 @@ function Status({ value }: { value: string }) {
 function LoadingBlock() {
   return <div aria-label="Carregando" data-testid="loading-state"><div className="skeleton" style={{ height: 34, width: 230, marginBottom: 22 }} /><div className="kpi-grid">{[1, 2, 3].map((i) => <div key={i} className="skeleton" style={{ height: 110 }} />)}</div><div className="skeleton" style={{ height: 240 }} /></div>;
 }
-function QueryState({ loading, error, retry }: { loading: boolean; error: boolean; retry: () => void }) {
+function requestFailureDetails(error: unknown): string {
+  if (!error || typeof error !== 'object') return 'Rota e status HTTP indisponíveis.';
+  const failure = error as { status?: unknown; method?: unknown; url?: unknown };
+  if (typeof failure.method !== 'string' || typeof failure.url !== 'string') {
+    return 'Rota e status HTTP indisponíveis.';
+  }
+
+  let route: string;
+  try {
+    route = new URL(failure.url, window.location.origin).pathname
+      .replace(/\/[0-9a-f]{8}-[0-9a-f-]{27,}/gi, '/:id')
+      .replace(/\/\d+(?=\/|$)/g, '/:id');
+  } catch {
+    return 'Rota e status HTTP indisponíveis.';
+  }
+
+  const method = failure.method.toUpperCase();
+  return typeof failure.status === 'number'
+    ? `HTTP ${failure.status} · ${method} ${route}`
+    : `Sem resposta HTTP · ${method} ${route}`;
+}
+function QueryState({ loading, error, retry }: { loading: boolean; error: unknown; retry: () => void }) {
   if (loading) return <LoadingBlock />;
-  if (error) return <div className="surface empty-state" role="alert"><div className="empty-icon"><CircleHelp /></div><b>Não foi possível carregar os dados</b><p>Verifique sua conexão e tente novamente.</p><Button onClick={retry} data-testid="button-retry">Tentar novamente</Button></div>;
+  if (error) return <div className="surface empty-state" role="alert"><div className="empty-icon"><CircleHelp /></div><b>Não foi possível carregar os dados</b><p>Verifique sua conexão e tente novamente.</p><p className="muted" data-testid="request-failure-details">{requestFailureDetails(error)}</p><Button onClick={retry} data-testid="button-retry">Tentar novamente</Button></div>;
   return null;
 }
 function EmptyState({ title, detail }: { title: string; detail: string }) {
@@ -284,14 +305,14 @@ function DashboardCalendar() {
       })}</tr>)}</tbody>
     </table>
     {query.isLoading && <p className="muted" aria-live="polite" style={{ margin: '12px 0 0', fontSize: 12 }}>Carregando atendimentos do mês…</p>}
-    {query.isError && <p className="muted" role="alert" style={{ margin: '12px 0 0', fontSize: 12 }}>Não foi possível carregar os atendimentos deste mês.</p>}
+    {query.isError && <p className="muted" role="alert" data-testid="calendar-request-failure" style={{ margin: '12px 0 0', fontSize: 12 }}>Não foi possível carregar os atendimentos deste mês. {requestFailureDetails(query.error)}</p>}
     {!query.isLoading && !query.isError && <p className="muted" style={{ margin: '12px 0 0', fontSize: 12 }}>{query.data?.length || 0} atendimentos no mês</p>}
   </Panel>;
 }
 
 function DashboardPage() {
   const query = useGetDashboard({ query: { queryKey: getGetDashboardQueryKey() } });
-  if (query.isLoading || query.isError) return <QueryState loading={query.isLoading} error={query.isError} retry={() => void query.refetch()} />;
+  if (query.isLoading || query.isError) return <QueryState loading={query.isLoading} error={query.error} retry={() => void query.refetch()} />;
   const data = query.data;
   const stats = [
     [Users, data?.activePatients ?? 0, 'Pacientes ativos'],
@@ -350,7 +371,7 @@ function PatientsPage() {
       <select className="form-control" style={{ width: 'auto' }} value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Filtrar situação" data-testid="select-patient-filter"><option value="all">Todas as situações</option><option value="in_follow_up">Em acompanhamento</option><option value="initial_evaluation">Avaliação inicial</option><option value="paused">Pausado</option><option value="discharged">Alta</option></select>
       <label className="muted" style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12 }}><input type="checkbox" checked={includeArchived} onChange={(event) => setIncludeArchived(event.target.checked)} data-testid="toggle-archived" />Incluir arquivados</label>
     </div>
-    {query.isLoading || query.isError ? <QueryState loading={query.isLoading} error={query.isError} retry={() => void query.refetch()} /> :
+    {query.isLoading || query.isError ? <QueryState loading={query.isLoading} error={query.error} retry={() => void query.refetch()} /> :
       <div className="surface table-scroll" style={{ padding: 12 }}>
         {patients.length ? <table className="data-table"><thead><tr><th>Paciente</th><th>Situação</th><th>Início</th><th>Contato</th><th>Ações</th></tr></thead><tbody>{patients.map((patient) => <tr key={patient.id} data-testid={`row-patient-${patient.id}`}><td><Link href={`/patients/${patient.id}`} className="row-list" style={{ padding: 0, border: 0, color: 'inherit', textDecoration: 'none' }} data-testid={`link-patient-${patient.id}`}><div className="avatar-initials">{initials(patient.fullName)}</div><b style={{ fontWeight: 600 }}>{patient.fullName}</b></Link></td><td><Status value={patient.status} />{patient.archivedAt && <span className="muted" style={{ marginLeft: 7, fontSize: 11 }}>Arquivado</span>}</td><td>{shortDate(patient.startDate)}</td><td className="muted">{patient.email || patient.phone || '—'}</td><td><div style={{ display: 'flex', gap: 6 }}><Link href={`/patients/${patient.id}`} className="btn btn-small" aria-label={`Abrir ${patient.fullName}`} data-testid={`button-open-patient-${patient.id}`}><ArrowRight size={14} /></Link>{!patient.archivedAt && <Button className="btn-small btn-danger" disabled={archive.isPending} aria-label={`Arquivar ${patient.fullName}`} onClick={() => { if (window.confirm('Arquivar este cadastro? Os registros serão preservados.')) archive.mutate({ patientId: patient.id }, { onSuccess: async () => { await invalidate(client, [getListPatientsQueryKey(params), getGetPatientQueryKey(patient.id)]); toast.success('Cadastro arquivado.'); }, onError: () => toast.error('Não foi possível arquivar o cadastro.') }); }} data-testid={`button-archive-${patient.id}`}><Archive size={14} /></Button>}</div></td></tr>)}</tbody></table> : <EmptyState title="Nenhum cadastro encontrado" detail="Ajuste os filtros ou cadastre um novo paciente." />}
       </div>}
@@ -366,7 +387,7 @@ function PatientDetailPage() {
   const [tab, setTab] = useState<'overview' | 'records'>('overview');
   const records = useListPatientRecords(id, { query: { queryKey: getListPatientRecordsQueryKey(id), enabled: !!id } });
   const patient = query.data;
-  if (query.isLoading || query.isError || !patient) return <QueryState loading={query.isLoading} error={query.isError} retry={() => void query.refetch()} />;
+  if (query.isLoading || query.isError || !patient) return <QueryState loading={query.isLoading} error={query.error} retry={() => void query.refetch()} />;
   return <>
     <PageTitle title={patient.fullName} subtitle={<span>{shortDate(patient.startDate)} · <Status value={patient.status} /></span>} action={<div style={{ display: 'flex', gap: 8 }}><Link href="/patients" className="btn" data-testid="link-back-patients"><ArrowLeft size={15} />Pacientes</Link><Button onClick={() => setEditing(true)} data-testid="button-edit-patient"><UserRound size={15} />Editar cadastro</Button></div>} />
     <div style={{ display: 'flex', gap: 6, borderBottom: '1px solid #e9e7e0', marginBottom: 18 }}><button className="btn" style={{ border: 0, borderRadius: 0, borderBottom: tab === 'overview' ? '2px solid #435f50' : '2px solid transparent' }} onClick={() => setTab('overview')} data-testid="tab-overview">Visão geral</button><button className="btn" style={{ border: 0, borderRadius: 0, borderBottom: tab === 'records' ? '2px solid #435f50' : '2px solid transparent' }} onClick={() => setTab('records')} data-testid="tab-patient-records">Prontuário</button></div>
@@ -428,7 +449,7 @@ function RecordsPage({ patientId: fixedPatientId }: { patientId?: string }) {
   return <><PageTitle title="Prontuários" subtitle="Registros clínicos em ordem cronológica, com versões e estados de finalização." action={patientId ? <Button primary onClick={() => setEditing('new')} data-testid="button-new-record"><Plus size={16} />Nova evolução</Button> : undefined} />
     {!fixedPatientId && <Field label="Paciente"><select className="form-control" value={patientId} onChange={(event) => { setPatientId(event.target.value); setSelected(''); }} data-testid="select-record-patient"><option value="">Selecione um paciente</option>{patientsQuery.data?.map((patient) => <option key={patient.id} value={patient.id}>{patient.fullName}</option>)}</select></Field>}
     {!patientId ? <Panel><EmptyState title="Selecione um paciente" detail="Os registros clínicos só são exibidos dentro do contexto do paciente." /></Panel> :
-      recordsQuery.isLoading || recordsQuery.isError ? <QueryState loading={recordsQuery.isLoading} error={recordsQuery.isError} retry={() => void recordsQuery.refetch()} /> :
+      recordsQuery.isLoading || recordsQuery.isError ? <QueryState loading={recordsQuery.isLoading} error={recordsQuery.error} retry={() => void recordsQuery.refetch()} /> :
       currentRecords.length ? <div className="timeline">{currentRecords.map((record) => <article key={record.id} className={`timeline-entry ${record.status === 'finalized' ? 'final' : ''}`} data-testid={`record-entry-${record.id}`}><Panel title={`${shortDate(record.occurredAt)} · ${record.sessionType}`} action={<Status value={record.status} />}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}><span className="muted" style={{ fontSize: 12 }}>Versão {record.version} · Atualizado {shortDate(record.updatedAt)}</span><div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}><Button className="btn-small" onClick={() => setSelected(selected === record.id ? '' : record.id)} data-testid={`button-versions-${record.id}`}><Eye size={14} />Versões</Button>{record.status === 'draft' ? <><Button className="btn-small" onClick={() => setEditing(record)} data-testid={`button-edit-record-${record.id}`}>Editar rascunho</Button><Button className="btn-small btn-primary" onClick={() => { if (window.confirm('Finalizar este registro? Após finalizado, alterações exigem justificativa.')) finalize.mutate({ recordId: record.id }, { onSuccess: async () => { await invalidate(client, [getListPatientRecordsQueryKey(patientId), getListRecordVersionsQueryKey(record.id)]); toast.success('Registro finalizado.'); }, onError: () => toast.error('Não foi possível finalizar o registro.') }); }} data-testid={`button-finalize-${record.id}`}><Check size={14} />Finalizar</Button></> : <Button className="btn-small" onClick={() => setAmending(record)} data-testid={`button-amend-${record.id}`}>Alterar com justificativa</Button>}</div></div>
         {record.goal && <div style={{ marginTop: 16 }}><b style={{ fontSize: 12 }}>Objetivo</b><p style={{ margin: '4px 0', whiteSpace: 'pre-wrap' }}>{record.goal}</p></div>}
@@ -502,7 +523,7 @@ function AppointmentManager({ rangeMode = false }: { rangeMode?: boolean }) {
       <div style={{ display: 'flex', gap: 6 }}><Button className="btn-small" onClick={() => setOffset((n) => n - 1)} aria-label="Período anterior" data-testid="button-previous-period"><ChevronLeft size={15} /></Button><Button className="btn-small" onClick={() => setOffset(0)} data-testid="button-current-period">Hoje</Button><Button className="btn-small" onClick={() => setOffset((n) => n + 1)} aria-label="Próximo período" data-testid="button-next-period"><ChevronRight size={15} /></Button><b style={{ marginLeft: 8, alignSelf: 'center', fontSize: 13 }}>{new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(from)}</b></div>
       {!rangeMode && <div style={{ display: 'flex', background: '#eeede8', borderRadius: 10, padding: 3 }}>{(['day', 'week', 'month'] as const).map((v) => <button key={v} className="btn btn-small" style={{ border: 0, background: view === v ? '#fff' : 'transparent', boxShadow: view === v ? '0 1px 3px #0001' : 'none' }} onClick={() => { setView(v); setOffset(0); }} data-testid={`button-view-${v}`}>{v === 'day' ? 'Dia' : v === 'week' ? 'Semana' : 'Mês'}</button>)}</div>}
     </div>
-    {appointments.isLoading || appointments.isError ? <QueryState loading={appointments.isLoading} error={appointments.isError} retry={() => void appointments.refetch()} /> :
+    {appointments.isLoading || appointments.isError ? <QueryState loading={appointments.isLoading} error={appointments.error} retry={() => void appointments.refetch()} /> :
       rangeMode ? <Panel title="Atendimentos no período"><AppointmentsTable appointments={data} onStatus={setStatus} /></Panel> :
       view === 'month' ? <Panel title="Visão mensal"><div className="calendar-grid">{['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map((x) => <b className="muted" key={x} style={{ padding: 6, fontSize: 11 }}>{x}</b>)}{Array.from({ length: (from.getDay() + 6) % 7 }, (_, i) => <span key={`blank-${i}`} />)}{days.map((day) => <div className={`calendar-cell ${day.toDateString() === new Date().toDateString() ? 'today' : ''}`} key={day.toISOString()} data-testid={`calendar-day-${day.getDate()}`}><b>{day.getDate()}</b>{data.filter((a) => new Date(a.scheduledAt).toDateString() === day.toDateString()).slice(0, 2).map((a) => <span className="calendar-event" key={a.id}>{time(a.scheduledAt)} · {a.patientName}</span>)}</div>)}</div></Panel> :
       <div style={{ display: 'grid', gridTemplateColumns: view === 'day' ? '1fr' : 'repeat(auto-fit,minmax(180px,1fr))', gap: 10 }}>{days.map((day) => { const items = data.filter((a) => new Date(a.scheduledAt).toDateString() === day.toDateString()); return <Panel key={day.toISOString()} title={new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: 'numeric' }).format(day)}>{items.length ? items.map((appointment) => <AppointmentCard key={appointment.id} appointment={appointment} onStatus={setStatus} onEdit={setEditing} />) : <p className="muted" style={{ fontSize: 12, padding: '8px 0' }}>Sem atendimentos</p>}</Panel>; })}</div>}
@@ -524,7 +545,7 @@ function ReportsPage() {
   const year = new Date().getFullYear();
   const query = useGetReports({ year }, { query: { queryKey: getGetReportsQueryKey({ year }) } });
   const report = query.data;
-  if (query.isLoading || query.isError) return <QueryState loading={query.isLoading} error={query.isError} retry={() => void query.refetch()} />;
+  if (query.isLoading || query.isError) return <QueryState loading={query.isLoading} error={query.error} retry={() => void query.refetch()} />;
   const max = Math.max(1, ...(report?.monthlySessions || []).map((item) => item.count));
   const metrics = [
     { Icon: Users, value: report?.activePatients ?? 0, label: 'Pacientes ativos' },
@@ -580,7 +601,7 @@ function DocumentsPage() {
       <Button primary type="submit" disabled={busy} data-testid="button-export-pdf"><Download size={15} />{busy ? 'Gerando PDF…' : 'Gerar e baixar PDF'}</Button>
       <p className="muted" style={{ fontSize: 11, marginBottom: 0 }}>O PDF é baixado diretamente. Nenhum link público permanente é criado.</p>
     </form></Panel>
-    <div style={{ marginTop: 18 }}><Panel title="Documentos disponíveis">{query.isLoading || query.isError ? <QueryState loading={query.isLoading} error={query.isError} retry={() => void query.refetch()} /> : query.data?.length ? query.data.map((doc) => <div className="row-list" key={doc.id} data-testid={`document-${doc.id}`}><div className="kpi-symbol"><FileText size={17} /></div><div className="row-list-main"><b>{doc.title}</b><small>{doc.documentType} · {shortDate(doc.createdAt)}</small></div><Button className="btn-small" onClick={() => void download({ documentType: doc.documentType as DocumentExportInput['documentType'], patientId: doc.patientId })} disabled={busy} data-testid={`button-download-document-${doc.id}`}><Download size={14} />PDF</Button></div>) : <EmptyState title="Nenhum documento disponível" detail="Documentos criados ou autorizados serão listados aqui." />}</Panel></div>
+    <div style={{ marginTop: 18 }}><Panel title="Documentos disponíveis">{query.isLoading || query.isError ? <QueryState loading={query.isLoading} error={query.error} retry={() => void query.refetch()} /> : query.data?.length ? query.data.map((doc) => <div className="row-list" key={doc.id} data-testid={`document-${doc.id}`}><div className="kpi-symbol"><FileText size={17} /></div><div className="row-list-main"><b>{doc.title}</b><small>{doc.documentType} · {shortDate(doc.createdAt)}</small></div><Button className="btn-small" onClick={() => void download({ documentType: doc.documentType as DocumentExportInput['documentType'], patientId: doc.patientId })} disabled={busy} data-testid={`button-download-document-${doc.id}`}><Download size={14} />PDF</Button></div>) : <EmptyState title="Nenhum documento disponível" detail="Documentos criados ou autorizados serão listados aqui." />}</Panel></div>
   </>;
 }
 type ProfileFormValues = { displayName: string; professionalRegistration: string; clinicName: string; remindersEnabled: boolean; compactMode: boolean };
@@ -593,7 +614,7 @@ function SettingsPage() {
     clinicName: query.data?.clinicName || '', remindersEnabled: query.data?.preferences.remindersEnabled ?? true,
     compactMode: query.data?.preferences.compactMode ?? false,
   } });
-  if (query.isLoading || query.isError) return <QueryState loading={query.isLoading} error={query.isError} retry={() => void query.refetch()} />;
+  if (query.isLoading || query.isError) return <QueryState loading={query.isLoading} error={query.error} retry={() => void query.refetch()} />;
   const save = form.handleSubmit((values) => {
     const payload: ProfessionalProfileUpdate = { ...values, professionalRegistration: values.professionalRegistration || null, clinicName: values.clinicName || null, preferences: { remindersEnabled: values.remindersEnabled, compactMode: values.compactMode } };
     update.mutate({ data: payload }, { onSuccess: async () => { await invalidate(client, [getGetProfileQueryKey()]); toast.success('Preferências atualizadas.'); }, onError: () => toast.error('Não foi possível salvar as preferências.') });
@@ -610,7 +631,7 @@ function SecurityPage() {
   const params = { limit: 100 };
   const query = useListAuditEvents(params, { query: { queryKey: getListAuditEventsQueryKey(params) } });
   return <><PageTitle title="Segurança" subtitle="Acompanhe eventos de acesso e alterações administrativas." />
-    <Panel title="Trilha de auditoria"><p className="muted" style={{ fontSize: 12, marginTop: -6 }}>Por privacidade, detalhes clínicos não são exibidos nos resumos de auditoria.</p>{query.isLoading || query.isError ? <QueryState loading={query.isLoading} error={query.isError} retry={() => void query.refetch()} /> : query.data?.length ? <div className="table-scroll"><table className="data-table"><thead><tr><th>Evento</th><th>Tipo</th><th>Registro</th><th>Quando</th></tr></thead><tbody>{query.data.map((event) => <tr key={event.id} data-testid={`audit-event-${event.id}`}><td><b>{event.eventType.replaceAll('_', ' ')}</b><small className="muted" style={{ display: 'block' }}>Ação registrada no sistema</small></td><td>{event.entityType}</td><td>{event.entityId ? `${event.entityType} · identificador restrito` : '—'}</td><td>{shortDate(event.occurredAt)} · {time(event.occurredAt)}</td></tr>)}</tbody></table></div> : <EmptyState title="Nenhum evento registrado" detail="Eventos de acesso serão listados nesta trilha." />}</Panel>
+    <Panel title="Trilha de auditoria"><p className="muted" style={{ fontSize: 12, marginTop: -6 }}>Por privacidade, detalhes clínicos não são exibidos nos resumos de auditoria.</p>{query.isLoading || query.isError ? <QueryState loading={query.isLoading} error={query.error} retry={() => void query.refetch()} /> : query.data?.length ? <div className="table-scroll"><table className="data-table"><thead><tr><th>Evento</th><th>Tipo</th><th>Registro</th><th>Quando</th></tr></thead><tbody>{query.data.map((event) => <tr key={event.id} data-testid={`audit-event-${event.id}`}><td><b>{event.eventType.replaceAll('_', ' ')}</b><small className="muted" style={{ display: 'block' }}>Ação registrada no sistema</small></td><td>{event.entityType}</td><td>{event.entityId ? `${event.entityType} · identificador restrito` : '—'}</td><td>{shortDate(event.occurredAt)} · {time(event.occurredAt)}</td></tr>)}</tbody></table></div> : <EmptyState title="Nenhum evento registrado" detail="Eventos de acesso serão listados aqui." />}</Panel>
     <div className="surface" style={{ display: 'flex', alignItems: 'center', gap: 13, marginTop: 16 }}><div className="kpi-symbol"><ShieldCheck size={19} /></div><div><b>Área autenticada</b><p className="muted" style={{ margin: '3px 0 0', fontSize: 12 }}>Acesso a dados clínicos depende de sessão profissional autenticada.</p></div></div>
   </>;
 }

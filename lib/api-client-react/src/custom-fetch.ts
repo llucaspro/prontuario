@@ -199,6 +199,19 @@ export class ApiError<T = unknown> extends Error {
   }
 }
 
+class ApiRequestError extends Error {
+  readonly name = "ApiRequestError";
+  readonly method: string;
+  readonly url: string;
+
+  constructor(requestInfo: { method: string; url: string }) {
+    super("A solicitação não recebeu uma resposta do servidor.");
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.method = requestInfo.method;
+    this.url = requestInfo.url;
+  }
+}
+
 export class ResponseParseError extends Error {
   readonly name = "ResponseParseError";
   readonly status: number;
@@ -360,7 +373,15 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  let response: Response;
+  try {
+    response = await fetch(input, { ...init, method, headers });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw error;
+    }
+    throw new ApiRequestError(requestInfo);
+  }
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);
