@@ -19,6 +19,11 @@ import {
 
 const router: IRouter = Router();
 
+function queryDateParam(value: unknown): Date | undefined {
+  if (value === undefined) return undefined;
+  return typeof value === "string" ? new Date(value) : new Date(Number.NaN);
+}
+
 async function hasScheduleConflict(
   tx: ScopedTransaction,
   professionalId: string,
@@ -57,8 +62,8 @@ router.get("/appointments", async (req, res): Promise<void> => {
   const professionalId = requireProfessional(req, res);
   if (!professionalId) return;
   const query = ListAppointmentsQueryParams.safeParse({
-    from: typeof req.query.from === "string" ? req.query.from : undefined,
-    to: typeof req.query.to === "string" ? req.query.to : undefined,
+    from: queryDateParam(req.query.from),
+    to: queryDateParam(req.query.to),
     status: typeof req.query.status === "string" ? req.query.status : undefined,
   });
   if (!query.success || (query.data.from && query.data.to && query.data.from >= query.data.to)) {
