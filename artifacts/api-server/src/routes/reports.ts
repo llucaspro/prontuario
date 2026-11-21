@@ -71,9 +71,12 @@ router.get("/reports", async (req, res): Promise<void> => {
       .groupBy(appointmentsTable.status);
     const byStatus = new Map(groupedStatuses.map((item) => [item.status, item.value]));
 
+    // O fuso vai como literal (constante confiável) e não como parâmetro: com parâmetro,
+    // o SELECT usa $1 e o GROUP BY usa $2, e o Postgres rejeita a query (erro 42803).
+    const monthExpr = sql<number>`extract(month from timezone(${sql.raw(`'${APP_TIME_ZONE}'`)}, ${appointmentsTable.scheduledAt}))`;
     const groupedMonths = await tx
       .select({
-        month: sql<number>`extract(month from timezone(${APP_TIME_ZONE}, ${appointmentsTable.scheduledAt}))`,
+        month: monthExpr,
         value: count(),
       })
       .from(appointmentsTable)
@@ -85,7 +88,7 @@ router.get("/reports", async (req, res): Promise<void> => {
           lt(appointmentsTable.scheduledAt, nextYearStart),
         ),
       )
-      .groupBy(sql`extract(month from timezone(${APP_TIME_ZONE}, ${appointmentsTable.scheduledAt}))`);
+      .groupBy(monthExpr);
     const byMonth = new Map(groupedMonths.map((item) => [Number(item.month), item.value]));
 
     return {
