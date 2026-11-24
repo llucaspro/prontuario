@@ -40,8 +40,11 @@ router.get("/patients", async (req, res): Promise<void> => {
   const conditions: SQL[] = [eq(patientsTable.professionalId, professionalId)];
   if (!query.data.includeArchived) conditions.push(isNull(patientsTable.archivedAt));
   if (query.data.status) conditions.push(eq(patientsTable.status, query.data.status));
-  if (query.data.search?.trim()) {
-    conditions.push(ilike(patientsTable.fullName, `%${query.data.search.trim()}%`));
+  const search = query.data.search?.trim().slice(0, 100);
+  if (search) {
+    // Escapa curingas do LIKE (\, % e _) para a busca ser sempre literal.
+    const escaped = search.replace(/[\\%_]/g, (char) => `\\${char}`);
+    conditions.push(ilike(patientsTable.fullName, `%${escaped}%`));
   }
 
   const patients = await withProfessionalScope(professionalId, (tx) =>
