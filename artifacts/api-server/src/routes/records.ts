@@ -20,6 +20,7 @@ import {
 import { appointmentsTable, patientsTable, recordsTable } from "@workspace/db";
 import {
   appendAuditEvent,
+  decryptClinicalPayload,
   encryptClinicalPayload,
   requireProfessional,
   toApiRecord,
@@ -177,13 +178,7 @@ router.patch("/records/:recordId", async (req, res): Promise<void> => {
     if (!current) return { kind: "missing" as const };
     if (current.status !== "draft") return { kind: "finalized" as const };
 
-    const currentPayload = JSON.parse(
-      JSON.stringify(
-        (await import("../lib/pensare-security")).decryptClinicalPayload(
-          current.encryptedPayload,
-        ),
-      ),
-    ) as ClinicalPayload;
+    const currentPayload = decryptClinicalPayload(current.encryptedPayload);
     const payload = payloadFrom(body.data, currentPayload);
     const [updated] = await tx
       .update(recordsTable)
@@ -308,9 +303,7 @@ router.post("/records/:recordId/amendments", async (req, res): Promise<void> => 
     if (!previous) return { kind: "missing" as const };
     if (previous.status !== "finalized") return { kind: "not_finalized" as const };
 
-    const oldPayload = (await import("../lib/pensare-security")).decryptClinicalPayload(
-      previous.encryptedPayload,
-    );
+    const oldPayload = decryptClinicalPayload(previous.encryptedPayload);
     const payload = payloadFrom(
       body.data,
       oldPayload,

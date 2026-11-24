@@ -59,7 +59,7 @@ router.patch("/profile", async (req, res): Promise<void> => {
       .insert(profilesTable)
       .values({
         professionalId,
-        displayName: body.data.displayName ?? current?.displayName ?? "Profissional",
+        displayName: body.data.displayName?.trim() || current?.displayName || "Profissional",
         professionalRegistration:
           body.data.professionalRegistration === undefined
             ? current?.professionalRegistration ?? null

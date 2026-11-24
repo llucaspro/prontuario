@@ -5,7 +5,7 @@ import { clerkMiddleware, getAuth } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
 import pinoHttp from "pino-http";
 import router from "./routes";
-import { logger } from "./lib/logger";
+import { describeError, logger } from "./lib/logger";
 import {
   CLERK_PROXY_PATH,
   clerkProxyMiddleware,
@@ -66,7 +66,9 @@ app.use("/api", apiRateLimit);
 app.use("/api", router);
 
 app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
-  req.log.error({ err: error }, "Unhandled API error");
+  // Não logar o erro bruto: erros do Drizzle/pg carregam a query e os valores
+  // (nome, e-mail, telefone de pacientes) na mensagem.
+  req.log.error({ error: describeError(error) }, "Unhandled API error");
   if (res.headersSent) return;
   res.status(500).json({ error: "Erro interno do servidor." });
 });
